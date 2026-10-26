@@ -13,275 +13,196 @@
 		var hidden = null;
 
 		// The submitted value field is rendered immediately before the visual
-		// Better Tags widget in both SMF posting fields and external integrations
-		// such as Better Gallery. It is a sibling, not a child of `root`.
-		if (root.previousElementSibling && root.previousElementSibling.classList.contains('better_tags_value'))
+		// Better Tags widget in both SMF posting forms and Better Gallery forms.
+		if (root.previousElementSibling && root.previousElementSibling.matches('input[name="better_tags"], input[name="better_tags_gallery_album"], input[name="better_tags_gallery_media"], input[name="better_tags_download"]'))
+		{
 			hidden = root.previousElementSibling;
-
-		// Defensive fallbacks for custom templates/integrations.
-		if (!hidden && root.parentElement)
-			hidden = root.parentElement.querySelector('.better_tags_value');
+			hidden.type = 'hidden';
+		}
+		else
+		{
+			hidden = root.querySelector('input[type="hidden"]');
+		}
 
 		if (!hidden)
-			hidden = document.getElementById('better_tags');
-		var input = root.querySelector('.better_tags_entry_input');
-		var selectedBox = root.querySelector('.better_tags_selected');
-		var suggestions = root.querySelector('.better_tags_suggestions');
-		if (!hidden || !input || !selectedBox || !suggestions) return;
+			return;
 
-		var maxTags = parseInt(root.dataset.maxTags || '8', 10);
-		var maxLength = parseInt(root.dataset.maxLength || '40', 10);
-		var suggestUrl = root.dataset.suggestUrl || '';
-		var placeholder = root.dataset.placeholder || 'Type a tag and press Enter';
-		var tags = [];
-		var initialSuggestions = [];
-		var preload = root.querySelector('.better_tags_preload');
-		try {
-			initialSuggestions = preload ? JSON.parse(preload.textContent || '[]') : [];
-		} catch (e) {
-			initialSuggestions = [];
-		}
+		var input = root.querySelector('input[type="text"]');
+		var suggestions = root.querySelector('.better-tags-suggestions');
+		if (!input || !suggestions)
+			return;
+
+		var suggestUrl = root.getAttribute('data-suggest-url');
+		var timer = null;
 		var activeIndex = -1;
-		var controller = null;
-		var debounceTimer = null;
+		var items = [];
+		var selected = [];
 
-		function sync() {
-			hidden.value = tags.join(', ');
-			selectedBox.innerHTML = '';
-			tags.forEach(function (tag, index) {
+		function setSelected(value) {
+			selected = splitTags(value);
+			hidden.value = selected.join(', ');
+			input.value = '';
+			renderChips();
+		}
+
+		function renderChips() {
+			var old = root.querySelector('.better-tags-chips');
+			if (old)
+				old.remove();
+			var wrap = document.createElement('div');
+			wrap.className = 'better-tags-chips';
+			selected.forEach(function (tag) {
 				var chip = document.createElement('span');
-				chip.className = 'better_tags_edit_chip';
-				var label = document.createElement('span');
-				label.className = 'better_tags_chip_label';
-				label.textContent = tag;
-				chip.appendChild(label);
-
+				chip.className = 'better-tags-chip';
+				chip.textContent = tag;
 				var remove = document.createElement('button');
 				remove.type = 'button';
-				remove.className = 'better_tags_chip_remove';
+				remove.className = 'better-tags-remove';
 				remove.setAttribute('aria-label', 'Remove ' + tag);
-				remove.textContent = '×';
+				remove.textContent = 'Ô';
 				remove.addEventListener('click', function () {
-					tags.splice(index, 1);
-					sync();
-					input.focus();
+					selected = selected.filter(function (v) { return normalize(v) !== normalize(tag); });
+					hidden.value = selected.join(', ');
+					renderChips();
 				});
-
 				chip.appendChild(remove);
-				selectedBox.appendChild(chip);
-			});
-
-			input.placeholder = tags.length ? '' : placeholder;
-			input.disabled = tags.length >= maxTags;
-			root.classList.toggle('is-full', input.disabled);
+				wrap.appendChild(chip);
+		});
+			root.insertBefore(wrap, input);
 		}
 
-		function addTag(value) {
-			var tag = value.trim().replace(/^#+|,+$/g, '').replace(/\s+/g, ' ');
-			if (!tag || tags.length >= maxTags) return false;
-			if (tag.length > maxLength) tag = tag.slice(0, maxLength).trim();
-			if (!tag) return false;
-
-			var key = normalize(tag);
-			if (tags.some(function (existing) { return normalize(existing) === key; })) {
-				input.value = '';
-				closeSuggestions();
-				return false;
-			}
-
-			tags.push(tag);
-			input.value = '';
-			closeSuggestions();
-			sync();
-			return true;
-		}
-
-		function closeSuggestions() {
+		function hideSuggestions() {
 			suggestions.hidden = true;
 			suggestions.innerHTML = '';
+			items = [];
 			activeIndex = -1;
-			input.setAttribute('aria-expanded', 'false');
 		}
 
-		function activate(index) {
-			var items = suggestions.querySelectorAll('.better_tags_suggestion');
-			items.forEach(function (item) { item.classList.remove('is-active'); });
-			if (!items.length) return;
-			if (index < 0) index = items.length - 1;
-			if (index >= items.length) index = 0;
-			activeIndex = index;
-			items[index].classList.add('is-active');
-			items[index].scrollIntoView({ block: 'nearest' });
-		}
-
-		function renderSuggestions(items) {
-			var selectedKeys = new Set(tags.map(normalize));
-			items = items.filter(function (item) { return !selectedKeys.has(normalize(item.tag_name)); });
-			if (!items.length) {
-				closeSuggestions();
-				return;
-			}
-
+		function renderSuggestions(rows) {
 			suggestions.innerHTML = '';
-			items.forEach(function (item, index) {
-				var option = document.createElement('button');
-				option.type = 'button';
-				option.className = 'better_tags_suggestion';
-				option.setAttribute('role', 'option');
-
-				var name = document.createElement('span');
-				name.className = 'better_tags_suggestion_name';
-				name.textContent = item.tag_name;
-				option.appendChild(name);
-
-				var count = document.createElement('span');
-				count.className = 'better_tags_suggestion_count';
-				var usageCount = typeof item.usage_count === 'number' ? item.usage_count : (item.topic_count || 0);
-				count.textContent = usageCount + (usageCount === 1 ? ' use' : ' uses');
-				option.appendChild(count);
-
-				option.addEventListener('mousedown', function (event) { event.preventDefault(); });
-				option.addEventListener('click', function () {
-					addTag(item.tag_name);
-					input.focus();
-				});
-				option.addEventListener('mouseenter', function () { activate(index); });
-				suggestions.appendChild(option);
-			});
-
-			suggestions.hidden = false;
-			input.setAttribute('aria-expanded', 'true');
+			items = [];
 			activeIndex = -1;
+			rows.forEach(function (row) {
+				var button = document.createElement('button');
+				button.type = 'button';
+				button.className = 'better-tags-suggestion';
+				button.textContent = row.name;
+				button.addEventListener('mousedown', function (event) {
+					event.preventDefault();
+					addTag(row.name);
+				});
+				suggestions.appendChild(button);
+				items.push(button);
+		});
+			suggestions.hidden = rows.length === 0;
 		}
 
-		function localSuggestions(query) {
-			var key = normalize(query);
-
-			return initialSuggestions
-				.filter(function (item) {
-					return !key || normalize(item.tag_name).indexOf(key) !== -1;
-				})
-				.sort(function (a, b) {
-					var ak = normalize(a.tag_name);
-					var bk = normalize(b.tag_name);
-					var ar = ak === key ? 0 : (ak.indexOf(key) === 0 ? 1 : 2);
-					var br = bk === key ? 0 : (bk.indexOf(key) === 0 ? 1 : 2);
-					if (ar !== br) return ar - br;
-					if ((b.topic_count || 0) !== (a.topic_count || 0)) return (b.topic_count || 0) - (a.topic_count || 0);
-					return a.tag_name.localeCompare(b.tag_name);
-				})
-				.slice(0, 10);
+		function updateActive() {
+			items.forEach(function (item, index) {
+				item.classList.toggle('is-active', index === activeIndex);
+			});
 		}
 
-		function fetchSuggestions() {
-			var query = input.value.trim();
-
-			if (!query || tags.length >= maxTags) {
-				closeSuggestions();
+		function addTag(tag) {
+			tag = tag.trim();
+			if (!tag)
+				return;
+			var norm = normalize(tag);
+			if (selected.some(function (v) { return normalize(v) === norm; })) {
+				input.value = '';
+			hideSuggestions();
 				return;
 			}
-
-			var local = localSuggestions(query);
-			if (local.length)
-				renderSuggestions(local);
-			else
-				closeSuggestions();
-
-			// Empty input intentionally shows the most-used visible tags from the
-			// server-rendered preload. Only call the endpoint after the user types.
-			if (!query || !suggestUrl)
-				return;
-
-			if (controller) controller.abort();
-			controller = new AbortController();
-
-			fetch(suggestUrl + '&q=' + encodeURIComponent(query), {
-				credentials: 'same-origin',
-				signal: controller.signal,
-				headers: { 'X-Requested-With': 'XMLHttpRequest' }
-			})
-				.then(function (response) { return response.ok ? response.json() : []; })
-				.then(function (items) {
-					if (Array.isArray(items) && items.length)
-						renderSuggestions(items);
-					else if (!local.length)
-						closeSuggestions();
-				})
-				.catch(function (error) {
-					if (error.name !== 'AbortError' && !local.length)
-						closeSuggestions();
-				});
+			selected.push(tag);
+			hidden.value = selected.join(', ');
+			input.value = '';
+			renderChips();
+			hideSuggestions();
 		}
-
-		splitTags(hidden.value).forEach(function (tag) {
-			if (!tags.some(function (existing) { return normalize(existing) === normalize(tag); }) && tags.length < maxTags)
-				tags.push(tag);
-		});
-		sync();
 
 		input.addEventListener('input', function () {
-			clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(fetchSuggestions, 140);
+			clearTimeout(timer);
+			var query = input.value.trim();
+			if (query.length < 1) {
+				hideSuggestions();
+				return;
+			}
+			timer = setTimeout(function () {
+				fetch(suggestUrl + '&q=' + encodeURIComponent(query), { credentials: 'same-origin' })
+					.then(function (response) { return response.json(); })
+					.then(function (data) {
+						renderSuggestions((data && Array.isArray(data.tags)) ? data.tags : []);
+					})
+					.catch(hideSuggestions);
+			}, 180);
 		});
-
-
 		input.addEventListener('keydown', function (event) {
-			var items = suggestions.querySelectorAll('.better_tags_suggestion');
-			if (event.key === 'ArrowDown' && !suggestions.hidden) {
+			if (event.key === 'ArrowDown' && items.length) {
 				event.preventDefault();
-				activate(activeIndex + 1);
-				return;
-			}
-			if (event.key === 'ArrowUp' && !suggestions.hidden) {
+				activeIndex = (activeIndex + 1) % items.length;
+				updateActive();
+		} else if (event.key === 'ArrowUp' && items.length) {
 				event.preventDefault();
-				activate(activeIndex - 1);
-				return;
-			}
-			if ((event.key === 'Enter' || event.key === ',') && input.value.trim()) {
+				activeIndex = (activeIndex - 1 + items.length) % items.length;
+				updateActive();
+		} else if (event.key === 'Enter') {
 				event.preventDefault();
-				if (!suggestions.hidden && activeIndex >= 0 && items[activeIndex])
-					addTag(items[activeIndex].querySelector('.better_tags_suggestion_name').textContent);
+				if (activeIndex >= 0 && items[activeIndex])
+					addTag(items[activeIndex].textContent);
 				else
 					addTag(input.value);
-				return;
+			} else if (event.key === ',' && input.value.trim()) {
+				event.preventDefault();
+				addTag(input.value);
+			} else if (event.key === 'Escape') {
+				hideSuggestions();
 			}
-			if (event.key === 'Backspace' && !input.value && tags.length) {
-				tags.pop();
-				sync();
-				return;
-			}
-			if (event.key === 'Escape') closeSuggestions();
 		});
 
-		input.addEventListener('blur', function () {
-			setTimeout(closeSuggestions, 120);
-		});
-
-		root.addEventListener('click', function (event) {
-			if (event.target === root || event.target === selectedBox) input.focus();
-		});
-
-		var form = hidden.form;
-		if (form) {
-			form.addEventListener('submit', function () {
-				if (input.value.trim()) addTag(input.value);
-				hidden.value = tags.join(', ');
-			});
-		}
+		setSelected(hidden.value);
 	}
 
-	function initAllBetterTags() {
-		document.querySelectorAll('.better_tags_entry').forEach(function (root) {
-			if (root.dataset.betterTagsInitialized === '1')
+	function scanBetterTags(root) {
+		(root || document).querySelectorAll('.better-tags-entry').forEach(function (node) {
+			if (node.dataset.betterTagsInit === '1')
 				return;
-
-			root.dataset.betterTagsInitialized = '1';
-			initBetterTags(root);
+			node.dataset.betterTagsInit = '1';
+			initBetterTags(node);
 		});
+	}
+
+
+	// Theme Lab and other dynamic layout layers can move/paint posting widgets after
+	// DOMContentLoaded. A one-shot scan is not enough, so keep a small, bounded
+	// observer for newly-added Better Tags widgets. The data-better-tags-init flag
+	// keeps it idempotent.
+	function startBetterTagsObserver() {
+		if (typeof MutationObserver === 'undefined' || !document.body)
+			return;
+
+		var scheduled = false;
+		var observer = new MutationObserver(function (mutations) {
+			var shouldScan = mutations.some(function (mutation) {
+				return mutation.addedNodes && mutation.addedNodes.length;
+			});
+			if (!shouldScan || scheduled)
+				return;
+			scheduled = true;
+			requestAnimationFrame(function () {
+				scheduled = false;
+				scanBetterTags(document);
+			});
+		});
+		observer.observe(document.body, { childList: true, subtree: true });
+	}
+
+	function initAll() {
+		scanBetterTags(document);
+		startBetterTagsObserver();
 	}
 
 	if (document.readyState === 'loading')
-		document.addEventListener('DOMContentLoaded', initAllBetterTags, { once: true });
+		document.addEventListener('DOMContentLoaded', initAll);
 	else
-		initAllBetterTags();
+		initAll();
 })();
