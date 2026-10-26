@@ -27,9 +27,9 @@ Better Tags adds a clean tagging system to SMF and extends that same tag vocabul
 
 ## Current Version
 
-**0.1.0**
+**0.1.1**
 
-This is the first public Better Tags release.
+Better Tags 0.1.1 is the current audited stable release. It includes the v0.1.0 feature set plus the stable-release routing fix for the legacy direct follow action, complete upgrade coverage from v0.1.0, and normalized release asset identity.
 
 ## Compatibility
 
