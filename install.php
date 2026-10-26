@@ -28,6 +28,7 @@ $smcFunc['db_create_table']('{db_prefix}better_topic_tags', array(
 	array('type' => 'index', 'columns' => array('id_tag')),
 ), array(), 'ignore');
 
+
 $smcFunc['db_create_table']('{db_prefix}better_content_tags', array(
 	array('name' => 'content_type', 'type' => 'varchar', 'size' => 32),
 	array('name' => 'content_id', 'type' => 'bigint', 'size' => 20, 'unsigned' => true),
@@ -37,6 +38,7 @@ $smcFunc['db_create_table']('{db_prefix}better_content_tags', array(
 	array('type' => 'index', 'columns' => array('id_tag', 'content_type')),
 	array('type' => 'index', 'columns' => array('content_type', 'content_id')),
 ), array(), 'ignore');
+
 
 $smcFunc['db_create_table']('{db_prefix}better_tag_followers', array(
 	array('name' => 'id_member', 'type' => 'int', 'size' => 10, 'unsigned' => true),
@@ -96,7 +98,12 @@ $hooks = array(
 
 foreach ($hooks as $hook => $function)
 {
+	// During an upgrade, BetterTags.php may already have been loaded earlier in
+	// this same PHP request. The package can replace the file on disk, but PHP
+	// cannot replace functions already in memory. Persist newly introduced hooks
+	// for the next request without making them callable against stale in-memory code.
 	$old_runtime_hook = $modSettings[$hook] ?? null;
+
 	add_integration_function($hook, $function, true, '$sourcedir/BetterTags.php');
 
 	if ($hook === 'integrate_menu_buttons')

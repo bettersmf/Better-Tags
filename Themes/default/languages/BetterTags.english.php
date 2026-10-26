@@ -103,3 +103,4 @@ $txt['better_tags_no_downloads'] = 'No visible downloads use this tag.';
 
 $txt['better_tags_remove_data_on_uninstall'] = 'Delete Better Tags data on uninstall';
 $txt['better_tags_remove_data_on_uninstall_help'] = 'Leave this unchecked to preserve tags, content relationships, followers, and settings if Better Tags is uninstalled. Enable it only when you intentionally want a complete data purge.';
+

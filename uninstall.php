@@ -35,6 +35,7 @@ $hooks = array(
 foreach ($hooks as $hook => $function)
 	remove_integration_function($hook, $function, true, '$sourcedir/BetterTags.php');
 
+// Preserve Better Tags data unless the administrator explicitly opted into purge.
 if (!empty($modSettings['better_tags_remove_data_on_uninstall']))
 {
 	$tables = array(
