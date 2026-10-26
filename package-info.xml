@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<package-info xmlns="http://www.simplemachines.org/xml/package-info">
+	<id>bettersmf:better-tags</id>
+	<name>Better Tags</name>
+	<version>0.1.0</version>
+	<type>modification</type>
+
+	<install for="2.1 - 2.1.99">
+		<require-file name="Sources/BetterTags.php" destination="$sourcedir" />
+		<require-file name="Themes/default/languages/BetterTags.english.php" destination="$themes_dir/default/languages" />
+		<require-file name="Themes/default/css/better_tags.css" destination="$themes_dir/default/css" />
+		<require-file name="Themes/default/scripts/better_tags.js" destination="$themes_dir/default/scripts" />
+		<require-file name="Themes/default/images/admin/better_tags.png" destination="$themes_dir/default/images/admin" />
+		<require-file name="Themes/default/images/admin/big/better_tags.png" destination="$themes_dir/default/images/admin/big" />
+		<code>install.php</code>
+	</install>
+
+	<upgrade for="2.1 - 2.1.99" from="0.1.0-dev1,0.1.0-dev2,0.1.0-dev3,0.1.0-dev4,0.1.0-dev5,0.1.0-dev6,0.1.0-dev7,0.1.0-dev8,0.1.0-dev9,0.1.0-dev10,0.1.0-dev11,0.1.0-dev12a,0.1.0-dev13,0.1.0-dev13a,0.1.0-dev13b,0.1.0-dev13c,0.1.0-dev13d,0.1.0-dev13e,0.1.0-dev14,0.1.0-dev15,0.1.0-dev16,0.1.0-dev17,0.1.0-dev18,0.1.0-dev18a,0.1.0-dev18b,0.1.0-dev18c,0.1.0-dev18d,0.1.0-dev18e,0.1.0-dev19,0.1.0-dev19a,0.1.0-dev19b,0.1.0-dev20,0.1.0-dev20a,0.1.0-dev20b,0.1.0-dev20c,0.1.0-dev20d,0.1.0-dev21,0.1.0-dev21a,0.1.0-dev22,0.1.0-dev22a,0.1.0-dev22b">
+		<require-file name="Sources/BetterTags.php" destination="$sourcedir" />
+		<require-file name="Themes/default/languages/BetterTags.english.php" destination="$themes_dir/default/languages" />
+		<require-file name="Themes/default/css/better_tags.css" destination="$themes_dir/default/css" />
+		<require-file name="Themes/default/scripts/better_tags.js" destination="$themes_dir/default/scripts" />
+		<require-file name="Themes/default/images/admin/better_tags.png" destination="$themes_dir/default/images/admin" />
+		<require-file name="Themes/default/images/admin/big/better_tags.png" destination="$themes_dir/default/images/admin/big" />
+		<code>install.php</code>
+	</upgrade>
+
+	<uninstall for="2.1 - 2.1.99">
+		<code>uninstall.php</code>
+		<remove-file name="$sourcedir/BetterTags.php" />
+		<remove-file name="$themes_dir/default/languages/BetterTags.english.php" />
+		<remove-file name="$themes_dir/default/css/better_tags.css" />
+		<remove-file name="$themes_dir/default/scripts/better_tags.js" />
+		<remove-file name="$themes_dir/default/images/admin/better_tags.png" />
+		<remove-file name="$themes_dir/default/images/admin/big/better_tags.png" />
+	</uninstall>
+</package-info>
